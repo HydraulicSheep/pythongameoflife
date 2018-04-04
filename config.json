@@ -1,0 +1,12 @@
+{
+    "board":{
+        "dynamic_board_size":"1",
+        "static_rows":"80",
+        "static_columns":"80"
+    },
+    "playback":{
+        "gen_delay": "0.1",
+        "dead_symbol":" ",
+        "alive_symbol":"0"
+    }
+}
