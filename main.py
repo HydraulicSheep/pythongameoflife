@@ -2,6 +2,7 @@ import os
 import time
 import curses
 import random
+import json
 
 
 class Cell:
@@ -24,6 +25,7 @@ class Cell:
 
     def getliveneighbours(self, celllist, boardsize):
         count = 0
+        change = False
         for row in range(self.row-1, self.row+2):
             try:
                 celllist[row]
@@ -54,27 +56,32 @@ class Cell:
 class Board:
     celllist = {}  # Dict of rows
 
-    def __init__(self, rows, columns, random):
+    def __init__(self, rows, columns, random, dead_symbol,
+                 alive_symbol, board_rows, board_columns):
         self.rows = rows
         self.columns = columns
         self.random = random
+        self.dead_symbol = dead_symbol
+        self.alive_symbol = alive_symbol
+        self.board_rows = board_rows
+        self.board_columns = board_columns
         self.generate()
 
     def printboard(self):  # Prints the board to the terminal using curses
-        for num, row in self.celllist.items():
+        for row in range(self.rows-1):
             line = ''
-            for col, cell in enumerate(row):
-                if cell.label:
-                    line += ' '
+            for col in range(self.columns-1):
+                if self.celllist[row][col].label:
+                    line += self.dead_symbol
                 else:
-                    line += '0'
-            terminal.addstr(num, 0, line)
+                    line += self.alive_symbol
+            terminal.addstr(row, 0, line)
         terminal.refresh()
 
     def generate(self):  # Adds all the cells to the board
-        for row in range(self.rows-1):
+        for row in range(self.board_rows):
             self.celllist[row] = []
-            for col in range(self.columns):
+            for col in range(self.board_columns):
                 if self.random:
                     self.celllist[row].append(Cell(row, col,
                                                    bool(random.getrandbits(1)
@@ -85,28 +92,47 @@ class Board:
     def updateboard(self):  # Updates each cell and then their label
         for row in self.celllist:
             for cell in self.celllist[row]:
-                cell.updatecell(self.celllist, (self.rows-1, self.columns))
+                cell.updatecell(self.celllist, (self.board_rows,
+                                                self.board_columns))
         for row in self.celllist:
             for cell in self.celllist[row]:
                 cell.updatelabel()
 
 
+def setup():  # Loads json configi file
+
+    data = json.load(open('config.json'))  # Imports config file
+    dynamic_size = bool(int(data["board"]["dynamic_board_size"]))
+    board_rows = int(data["board"]["static_rows"])
+    board_columns = int(data["board"]["static_columns"])
+    delay = float(data["playback"]["gen_delay"])
+    dead_symbol = str(data["playback"]["dead_symbol"])
+    alive_symbol = str(data["playback"]["alive_symbol"])
+    return (board_rows, board_columns, dynamic_size, delay,
+            dead_symbol, alive_symbol)
+
+
 def getfiles():  # Loads all the pattern files
     files = []
-    print('State files (stored in examples directory):')
-    for file in os.listdir("examples"):
-        if file.endswith(".txt"):
-            files.append(os.path.join("examples/", file))
+    print('Examples and save files:')
+    for i in ('examples', 'saves'):
+        for file in os.listdir(i):
+            if file.endswith(".txt"):
+                files.append(os.path.join(i+'/', file))
     return files
 
 
-def randomboard(rows, columns):  # Sets the cell values to random
-    board = Board(int(rows), int(columns), True)
+def randomboard(rows, columns, board_rows,  # Sets the cell values to random
+                board_columns, dead_symbol, alive_symbol):
+    board = Board(int(rows), int(columns), True,
+                  dead_symbol, alive_symbol, board_rows, board_columns)
     return board
 
 
-def loadboard(rows, columns):  # Handles choosing a file and loading it
-    board = Board(int(rows), int(columns), False)
+def loadboard(rows, columns, board_rows,  # Handles choosing and loading files
+              board_columns, dead_symbol, alive_symbol):
+    board = Board(int(rows), int(columns), False, dead_symbol,
+                  alive_symbol, board_rows, board_columns)
     files = getfiles()
     for num, file in enumerate(files):
         print(str(num) + ': ' + file)
@@ -137,21 +163,34 @@ def loadboard(rows, columns):  # Handles choosing a file and loading it
 
 
 def main():
-    a = ''
     try:  # Checks that user is using a valid terminal
-        rows, columns = os.popen('stty size', 'r').read().split()
+        screenrows, screencolumns = os.popen('stty size', 'r').read().split()
     except ValueError:
         print('\033[91m'+'Please switch to a terminal rather than stdin to' +
               ' run this simulation' + '\033[0m')
         return 1
+    print(screenrows, screencolumns)
+    (board_rows, board_columns, dynamic_size, delay,  # Assigns config values
+     dead_symbol, alive_symbol) = setup()
+    if dynamic_size:  # If dynamic_size is being used, ignores config sizes
+        board_rows = int(screenrows)
+        board_columns = int(screencolumns)
+    else: # If board size is smaller than screen, only prints size specified
+        if board_rows < int(screenrows):
+            screenrows = board_rows
+        if board_columns < int(screencolumns):
+            screencolumns = board_columns
+    a = ''
     print("Welcome to Conway's Game of Life in Python")
     while a.lower() != 'load' and a.lower() != 'random':
         a = input('To play from a random seed, type random. ' +
                   'To load, type load: ')
     if a.lower() == 'random':
-        board = randomboard(rows, columns)
+        board = randomboard(screenrows, screencolumns, board_rows,
+                            board_columns, dead_symbol, alive_symbol)
     else:
-        board = loadboard(rows, columns)
+        board = loadboard(screenrows, screencolumns, board_rows,
+                          board_columns, dead_symbol, alive_symbol)
     while a != '':
         a = input('\033[92m' +
                   'To begin the simulation, just press the ENTER KEY.' +
@@ -186,6 +225,7 @@ def main():
                 curses.endwin()
                 terminal = curses.initscr()  # Reopens a curses window
                 terminal.nodelay(1)  # Don't wait for user input later
+            time.sleep(0.1)
             board.updateboard()
         except KeyboardInterrupt:  # Ends program with KeyboardInterrupt
             break
