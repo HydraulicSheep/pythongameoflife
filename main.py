@@ -24,7 +24,7 @@ class Cell:
             self.newlabel = False  # Keeps cell alive in other conditions
 
     def getliveneighbours(self, celllist, boardsize):
-        count = 0
+        count = 0   #set count to 0
         change = False
         for row in range(self.row-1, self.row+2):
             try:
@@ -168,7 +168,7 @@ def main():
     except ValueError:
         print('\033[91m'+'Please switch to a terminal rather than stdin to' +
               ' run this simulation' + '\033[0m')
-        return 1
+        return 1    #returns 1
     print(screenrows, screencolumns)
     (board_rows, board_columns, dynamic_size, delay,  # Assigns config values
      dead_symbol, alive_symbol) = setup()
@@ -219,7 +219,7 @@ def main():
                 print('\033[91m' +
                       'PAUSED: Press the ENTER KEY to continue. ' +
                       '\033[0m')
-                c = 0
+                c = 0   #sets c to 0
                 while c != 10:  # Checks for continue button
                     c = terminal.getch()
                 curses.endwin()
@@ -234,4 +234,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main()  #runs main()
